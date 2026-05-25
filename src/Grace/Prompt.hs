@@ -9,7 +9,6 @@ module Grace.Prompt
       Prompt(..)
     , Effort(..)
     , prompt
-
       -- * Exceptions
     , UnsupportedModelOutput(..)
     ) where
@@ -223,20 +222,22 @@ toJSONSchema original = loop original
     loop _ = Left UnsupportedModelOutput{ original }
 
 toResponseFormat
-    :: Maybe (Type a) -> Either (UnsupportedModelOutput a) ResponseFormat
-toResponseFormat Nothing = do
+    :: Text -> Maybe (Type a) -> Either (UnsupportedModelOutput a) ResponseFormat
+toResponseFormat _ Nothing = do
     return JSON_Object
-toResponseFormat (Just type_) = do
+toResponseFormat model (Just type_) = do
     value <- toJSONSchema type_
 
-    return JSON_Schema
-        { json_schema = JSONSchema
-            { description = Nothing
-            , name = "result"
-            , schema = Just value
-            , strict = Just True
+    if Text.isPrefixOf "deepseek-" model
+        then return JSON_Object
+        else return JSON_Schema
+            { json_schema = JSONSchema
+                { description = Nothing
+                , name = "result"
+                , schema = Just value
+                , strict = Just True
+                }
             }
-        }
 
 -- | Implementation of the @prompt@ keyword
 prompt
@@ -265,7 +266,7 @@ prompt generateContext import_ location Prompt{ key = Grace.Decode.Key{ text = k
     let defaultedModel = case model of
             Just m -> m
             _ | defaultedSearch -> "gpt-5-search-api"
-              | otherwise -> "gpt-5-mini"
+              | otherwise -> "deepseek-v4-flash"
 
     let reasoning_effort = do
             e <- effort
@@ -540,27 +541,42 @@ prompt generateContext import_ location Prompt{ key = Grace.Decode.Key{ text = k
                         Left message_ -> Exception.throwIO ModelDecodingFailed{ message = message_, text = text_ }
                         Right v -> return v
 
-            let expect = case schema of
-                    Nothing ->
-                        [ ]
-                    Just s ->
-                        [ System
-                            { name = Just "Instructions"
-                            , content =
-                                [ Completions.Text
-                                    { text = "Your generated JSON must have the following type"
-                                    }
-                                ]
-                            }
-                        , System
-                            { name = Just "Type"
-                            , content =
-                                [ Completions.Text
-                                    { text = Pretty.toSmart s
-                                    }
-                                ]
-                            }
-                        ]
+            let systemMessage name text_ = System
+                    { name = Just name
+                    , content = [ Completions.Text{ text = text_ } ]
+                    }
+
+            let schemaMessages s = case defaultedSchema of
+                    Just Type.Scalar{ scalar = Monotype.Text } ->
+                        return [ ]
+                    Just s_ | Text.isPrefixOf "deepseek-" defaultedModel -> do
+                        jsonSchema <- case toJSONSchema s_ of
+                            Left exception -> Exception.throwIO exception
+                            Right result -> return result
+
+                        let schemaText =
+                                Encoding.decodeUtf8
+                                    (ByteString.Lazy.toStrict (Aeson.encode jsonSchema))
+
+                        return
+                            [ systemMessage
+                                "Instructions"
+                                "Your generated JSON must conform to the following JSON Schema"
+                            , systemMessage "JSON Schema" schemaText
+                            ]
+                    _ ->
+                        return
+                            [ systemMessage
+                                "Instructions"
+                                "Your generated JSON must have the following type"
+                            , systemMessage "Type" (Pretty.toSmart s)
+                            ]
+
+            expect <- case schema of
+                Nothing ->
+                    return [ ]
+                Just s ->
+                    schemaMessages s
 
             let instructions₁ = instructions₀ <> expect
 
@@ -575,7 +591,7 @@ prompt generateContext import_ location Prompt{ key = Grace.Decode.Key{ text = k
                         )
 
             let extractRecord = do
-                    responseFormat <- case toResponseFormat defaultedSchema of
+                    responseFormat <- case toResponseFormat defaultedModel defaultedSchema of
                         Left exception -> Exception.throwIO exception
                         Right result -> return result
 
@@ -602,14 +618,15 @@ prompt generateContext import_ location Prompt{ key = Grace.Decode.Key{ text = k
 
                             return (Type.Record (Type.location s) (Type.Fields [("response", s)] Monotype.EmptyFields))
 
-                    responseFormat <- case toResponseFormat adjustedSchema of
+                    responseFormat <- case toResponseFormat defaultedModel adjustedSchema of
                         Left exception -> Exception.throwIO exception
                         Right result -> return result
 
                     let extract text_ = do
                             v <- decode_ text_
 
-                            expression <- case adjustedSchema of
+                            let schema_ = if Text.isPrefixOf "deepseek-" defaultedModel then defaultedSchema else adjustedSchema
+                            expression <- case schema_ of
                                 Nothing -> do
                                     return (Infer.inferJSON v)
                                 Just s -> do

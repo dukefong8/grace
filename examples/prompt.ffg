@@ -1,7 +1,7 @@
-\{ "OpenAI API key" } ->
+let key = env:DEEPSEEK_API_KEY : Key
 
-let key = .'OpenAI API key'
-
-let { x, y } = prompt{ key, text: "Give me two numbers" }
+let { x, y } =
+      prompt{ key, model: "deepseek-v4-flash",
+              text: "Give me two twin prime numbers" }
 
 in  { x, y, sum: x + y : Integer }

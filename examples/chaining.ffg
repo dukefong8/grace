@@ -1,14 +1,14 @@
-\{ "OpenAI API key" } ->
-
-let key = .'OpenAI API key'
+let key = env:DEEPSEEK_API_KEY : Key
 
 let question = prompt
         { key
+        , model: "deepseek-v4-flash"
         , text: "Give me a question that I can ask another model"
         }
 
 let answer = prompt
         { key
+        , model: "deepseek-v4-pro"
         , text: "
             ${question}
 

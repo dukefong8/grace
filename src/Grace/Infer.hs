@@ -2431,8 +2431,6 @@ infer e₀ = do
 
                     newBinding <- generateBinding
 
-                    (newAssignments, newBody) <- foldr scoped action newEntries
-
                     let annotation₁ = case monad of
                             IdentityMonad -> annotation₀
 
@@ -2446,14 +2444,24 @@ infer e₀ = do
                                 , type_ = annotation₀
                                 }
 
-                    newValue <- check value annotation₁
+                    (newAssignment, newAssignments, newBody) <- foldr scoped
+                        (do
+                            (newAssignments, newBody) <- action
 
-                    let newAssignment = Syntax.Bind
-                            { assignmentLocation
-                            , monad
-                            , binding = newBinding
-                            , assignment = newValue
-                            }
+                            context <- get
+
+                            newValue <- check value (Context.solveType context annotation₁)
+
+                            let newAssignment = Syntax.Bind
+                                    { assignmentLocation
+                                    , monad
+                                    , binding = newBinding
+                                    , assignment = newValue
+                                    }
+
+                            return (newAssignment, newAssignments, newBody)
+                        )
+                        newEntries
 
                     return (newAssignment : newAssignments, newBody)
 
@@ -4285,8 +4293,6 @@ check Syntax.Let{ location, assignments, body = body₀ } annotation₀ = do
 
             newBinding <- generateBinding
 
-            (newAssignments, newBody) <- foldr scoped action newEntries
-
             let annotation₂ = case monad of
                     ListMonad -> Type.List
                         { location = assignmentLocation
@@ -4300,14 +4306,24 @@ check Syntax.Let{ location, assignments, body = body₀ } annotation₀ = do
 
                     IdentityMonad -> annotation₁
 
-            newValue <- check value annotation₂
+            (newAssignment, newAssignments, newBody) <- foldr scoped
+                (do
+                    (newAssignments, newBody) <- action
 
-            let newAssignment = Syntax.Bind
-                    { assignmentLocation
-                    , monad
-                    , binding = newBinding
-                    , assignment = newValue
-                    }
+                    context <- get
+
+                    newValue <- check value (Context.solveType context annotation₂)
+
+                    let newAssignment = Syntax.Bind
+                            { assignmentLocation
+                            , monad
+                            , binding = newBinding
+                            , assignment = newValue
+                            }
+
+                    return (newAssignment, newAssignments, newBody)
+                )
+                newEntries
 
             return (newAssignment : newAssignments, newBody)
 

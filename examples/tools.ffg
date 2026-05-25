@@ -1,6 +1,4 @@
-\{ "OpenAI API key" } ->
-
-let key = .'OpenAI API key'
+let key = env:DEEPSEEK_API_KEY : Key
 
 let concatSep = import github
       { owner: "Gabriella439"
@@ -14,4 +12,6 @@ let call = fold
           concatSep " " ([ executable ] + arguments)
       }
 
-in  map call (prompt{ key, text: "Call some tools" })
+in map call (prompt{ key
+                   , model: "deepseek-v4-flash"
+                   , text: "Call some tools" })

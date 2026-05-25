@@ -24,8 +24,8 @@ import Servant.Client.Core.ClientError (ClientError(..))
 import Servant.Client.Core.Response (ResponseF(..))
 
 import Grace.HTTP.Type
-    ( Header(..)
-    , HTTP(..)
+    ( HTTP(..)
+    , Header(..)
     , Parameter(..)
     , completeHeaders
     , organization
@@ -48,12 +48,13 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Encoding
 import qualified Data.Text.Lazy as Text.Lazy
 import qualified Data.Text.Lazy.Encoding as Lazy.Encoding
-import qualified Network.HTTP.Types.Status as Status
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Client.TLS as TLS
 import qualified Network.HTTP.Types as HTTP.Types
+import qualified Network.HTTP.Types.Status as Status
 import qualified OpenAI.V1 as OpenAI
 import qualified Servant.Client as Client
+import qualified System.Environment as Environment
 import qualified System.IO.Unsafe as Unsafe
 
 -- | Exception type thrown by `fetch` in the event of any failure
@@ -261,7 +262,9 @@ renderError (NotUTF8 unicodeException) =
 -- | Initialize API for prompting
 getMethods :: IO (Text -> Methods)
 getMethods = do
-    baseUrl <- Client.parseBaseUrl "https://api.openai.com"
+    baseUrlText <- Environment.getEnv "OPENAI_BASE_URL"
+
+    baseUrl <- Client.parseBaseUrl baseUrlText
 
     manager <- newManager
 

@@ -1,29 +1,32 @@
 # Grace provides built-in language support for LLMs using the `prompt` function.
-# To run these examples you will need to provide an OpenAI API key below and.
-# and then click "Submit".
-\arguments ->
+# To run these examples you will need to set the DEEPSEEK_API_KEY environment
+# variable and then click "Submit".
 
-let key = arguments."OpenAI API key" in
+let key = env:DEEPSEEK_API_KEY : Key
+
+let model = "deepseek-v4-flash" in
 
 { # You can prompt a model with `Text`, which will (by default) return `Text`:
-  names: prompt{ key, text: "Give me a list of names" }
+  names:
+    prompt{ key, model, text: "Give me a list of chinese names" }
 
 , # You can request structured output with a type annotation, like this:
-  structuredNames: prompt{ key, text: "Give me a list of names" } : List Text
+  structuredNames:
+    prompt{ key, model, text: "Give me a list of names" } : List Text
 
 , # If you request a record with first and last name fields then the model will
   # adjust its output to match:
   fullNames:
-    prompt{ key, text: "Give me a list of names" }
+    prompt{ key, model, text: "Give me a list of names" }
       : List { firstName: Text, lastName: Text }
 
 , # In fact, that type is descriptive enough that we can just omit the prompt:
-  tacitFullNames: prompt{ key } : List { firstName: Text, lastName: Text }
+  tacitFullNames:
+    prompt{ key, model } : List { firstName: Text, lastName: Text }
 
-, # By default the `prompt` keyword selects the `gpt-5-mini` model, but you can
-  # specify other models using the `model` argument:
+, # You can specify which DeepSeek model to use with the `model` argument:
   differentModel:
-    prompt{ key, model: "gpt-5-nano" } : List { firstName: Text, lastName: Text }
+    prompt{ key, model } : List { firstName: Text, lastName: Text }
 }
 
 # Try switching to the "Code" tab below to view the code for the result, then

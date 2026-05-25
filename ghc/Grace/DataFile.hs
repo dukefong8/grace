@@ -7,8 +7,8 @@ module Grace.DataFile
 
 import Data.Text (Text)
 
-import qualified Paths_grace as Paths
 import qualified Data.Text.IO as Text.IO
+import qualified Paths_grace as Paths
 
 -- | Read a data file by its relative path
 readDataFile :: FilePath -> IO Text

@@ -1,5 +1,4 @@
-\{ "OpenAI API key" } ->
+let key = env:DEEPSEEK_API_KEY : Text
 
-let key = .'OpenAI API key'
-
-in  import prompt{ key, text: "Uppercase the input" } "abc" : Text
+in  import prompt{ key, model: "deepseek-v4-flash",
+                   text: "Uppercase the input" } "abc" : Text
